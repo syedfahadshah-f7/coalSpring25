@@ -1,8 +1,4 @@
 ```asm
-.686
-.model flat, stdcall
-option casemap :none
-
 include Irvine32.inc
 
 .data

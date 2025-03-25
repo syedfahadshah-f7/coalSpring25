@@ -1,3 +1,4 @@
+```asm
 .686
 .model flat, stdcall
 option casemap :none
@@ -513,3 +514,4 @@ CheckDone:
 CheckSolved ENDP
 
 END main
+```

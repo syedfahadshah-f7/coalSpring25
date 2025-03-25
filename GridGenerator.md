@@ -1,3 +1,4 @@
+### Code
 ```asm
 INCLUDE Irvine32.inc
 
@@ -219,7 +220,7 @@ isSafe ENDP
 
 ; Remove numbers to create puzzle
 removeNumbers PROC
-    mov ecx, 30
+    mov ecx, 50
 removeLoop:
     mov eax, 81
     call RandomRange
@@ -257,3 +258,5 @@ printBoard ENDP
 END main
 
 ```
+### Output
+![image](https://github.com/user-attachments/assets/992b0b88-3f57-44e2-a1fa-f755227c2b42)

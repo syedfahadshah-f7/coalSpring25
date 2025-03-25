@@ -52,12 +52,12 @@ GameLoop:
     ; Parse input
     call ParseInput
     cmp eax, 0
-    je InvalidInput
+    je InputError
     
     ; Validate move
     call ValidateMove
     cmp eax, 0
-    je InvalidMove
+    je MoveError
     
     ; Update board
     call UpdateBoard
@@ -65,29 +65,33 @@ GameLoop:
     ; Display updated board
     call DisplayBoard
     
-    ; Check if solved
+    ; Check if ALL cells are filled
     call CheckSolved
     cmp eax, 1
-    je GameWon
+    jne GameLoop  ; If not all filled, keep playing
     
-    jmp GameLoop
+    ; Only when all cells are filled, verify the solution
+    call VerifySolution
+    cmp eax, 1
+    jne GameLoop  ; If invalid, keep playing
+    
+    ; Only show win message if both conditions are met
+    mov edx, OFFSET winStr
+    call WriteString
+    call Crlf
+    jmp ExitGame
 
-InvalidInput:
+InputError:
     mov edx, OFFSET invalidStr
     call WriteString
     call Crlf
     jmp GameLoop
 
-InvalidMove:
+MoveError:
     mov edx, OFFSET errorStr
     call WriteString
     call Crlf
     jmp GameLoop
-
-GameWon:
-    mov edx, OFFSET winStr
-    call WriteString
-    call Crlf
 
 ExitGame:
     exit
@@ -335,11 +339,11 @@ ValidateMove PROC
 
     ; Convert to 0-based indices
     movzx eax, row
-    dec eax
+    dec eax                 ; 0-based row
     movzx ebx, col
-    dec ebx
+    dec ebx                 ; 0-based column
 
-    ; Ensure row and col are within bounds (0-8)
+    ; Check bounds (0-8)
     cmp eax, 0
     jl InvalidValidation
     cmp eax, 8
@@ -349,105 +353,119 @@ ValidateMove PROC
     cmp ebx, 8
     jg InvalidValidation
 
-    ; Compute board index
+    ; Calculate index = row * 9 + column
     imul eax, 9
     add eax, ebx
+    mov edi, eax            ; Save cell index
 
-    ; Check if cell is empty (0) or we're clearing it (value=0)
+    ; Check if cell is empty or we're clearing it (value=0)
     movzx ecx, value
     cmp ecx, 0
-    je ValidMove  ; Allow clearing any cell
+    je ValidMove            ; Allow clearing any cell
     cmp board[eax], 0
-    jne InvalidValidation
+    jne InvalidValidation   ; Cell must be empty to place number
 
-    ; Check if value is valid (1-9)
+    ; Check value is 1-9
     cmp ecx, 1
     jl InvalidValidation
     cmp ecx, 9
     jg InvalidValidation
 
+    ; ========== FIXED ROW VALIDATION ==========
     ; Check row for duplicate
-    push eax
-    push ebx
-    mov edi, eax    ; Save cell index
-    and eax, 0FFFFFFF8h  ; Get start of row (row * 9)
-    mov ecx, 9      ; Check all 9 columns
+    mov esi, eax            ; Save current index
+    mov eax, esi
+    xor edx, edx
+    mov ecx, 9
+    div ecx                 ; eax = row number (0-8), edx = column (0-8)
+    imul eax, 9             ; eax = start of row (row * 9)
+    
+    mov ecx, 9              ; Check all 9 columns
     movzx edx, value
 RowCheck:
-    cmp eax, edi    ; Skip current cell
+    cmp eax, esi            ; Skip current cell
     je SkipRowCheck
     cmp board[eax], dl
     je DuplicateFound
 SkipRowCheck:
     inc eax
     loop RowCheck
-    pop ebx
-    pop eax
 
+    ; ========== COLUMN VALIDATION ==========
     ; Check column for duplicate
-    push eax
-    push ebx
-    mov edi, ebx    ; column number
-    mov eax, ebx    ; start at top of column
-    mov ecx, 9      ; check all 9 rows
+    mov eax, edi            ; Original index
+    xor edx, edx
+    mov ecx, 9
+    div ecx                 ; eax = row, edx = column
+    mov ebx, edx            ; ebx = column number (0-8)
+    
+    mov ecx, 9              ; Check all 9 rows
     movzx edx, value
 ColCheck:
-    cmp eax, edi    ; Skip current cell (row*9 + col)
+    ; Calculate index = row * 9 + column
+    mov eax, ecx
+    dec eax                 ; row index (0-8)
+    imul eax, 9
+    add eax, ebx            ; eax = row * 9 + column
+    
+    cmp eax, edi            ; Skip current cell
     je SkipColCheck
     cmp board[eax], dl
     je DuplicateFound
 SkipColCheck:
-    add eax, 9      ; move down one row
     loop ColCheck
-    pop ebx
-    pop eax
 
+    ; ========== BOX VALIDATION ==========
     ; Check 3x3 box for duplicate
+    mov eax, edi            ; Original index
+    xor edx, edx
+    mov ecx, 9
+    div ecx                 ; eax = row (0-8), edx = column (0-8)
+    
+    ; Calculate box starting row = (row / 3) * 3
     push eax
-    push ebx
-    ; Calculate top-left corner of 3x3 box
-    mov eax, ebx    ; column
-    mov edx, 0
+    xor edx, edx
     mov ecx, 3
-    div ecx         ; eax = column / 3
-    imul eax, 3     ; eax = (column / 3) * 3 (start column of box)
-    mov ebx, eax    ; save start column
-
-    mov eax, edi    ; original index
-    mov edx, 0
-    mov ecx, 27     ; row / 3 * 27
-    div ecx
-    imul eax, 27    ; eax = (row / 3) * 27 (start row of box)
-    add eax, ebx    ; eax = start index of box
-    mov edi, eax    ; save start index
-
-    mov ecx, 3      ; 3 rows
+    div ecx                 ; eax = row / 3
+    imul eax, 3             ; eax = box starting row
+    mov ebx, eax            ; ebx = box starting row
+    pop eax
+    
+    ; Calculate box starting column = (column / 3) * 3
+    mov eax, edx            ; column (0-8)
+    xor edx, edx
+    mov ecx, 3
+    div ecx                 ; eax = column / 3
+    imul eax, 3             ; eax = box starting column
+    
+    ; Calculate starting index = (box starting row * 9) + box starting column
+    imul ebx, 9
+    add ebx, eax            ; ebx = starting index of box
+    
+    ; Check all 9 cells in the box
+    mov ecx, 3              ; 3 rows
 BoxRowCheck:
     push ecx
-    mov ecx, 3      ; 3 columns
-    mov eax, edi    ; start of row in box
+    mov ecx, 3              ; 3 columns
+    mov eax, ebx            ; start of row in box
     movzx edx, value
 BoxColCheck:
-    cmp eax, [esp + 12] ; compare with original index (pushed eax)
+    cmp eax, edi            ; compare with original index
     je SkipBoxCheck
     cmp board[eax], dl
     je DuplicateFound
 SkipBoxCheck:
     inc eax
     loop BoxColCheck
-    add edi, 9      ; move to next row in box
+    add ebx, 9              ; move to next row in box
     pop ecx
     loop BoxRowCheck
-    pop ebx
-    pop eax
 
 ValidMove:
     mov eax, 1
     jmp ValidationDone
 
 DuplicateFound:
-    pop ebx
-    pop eax
 InvalidValidation:
     mov eax, 0
 
@@ -459,6 +477,138 @@ ValidationDone:
     pop ebx
     ret
 ValidateMove ENDP
+
+VerifySolution PROC
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+
+    ; Check all rows
+    mov ebx, 0          ; Row counter
+RowCheck:
+    cmp ebx, 9
+    je ColumnsCheck
+    mov edx, 0          ; Bitmask for numbers seen
+    mov ecx, 0          ; Column counter
+RowLoop:
+    cmp ecx, 9
+    je NextRow
+    mov eax, ebx
+    imul eax, 9
+    add eax, ecx
+    movzx esi, board[eax]
+    dec esi             ; Convert to 0-based
+    bt edx, esi
+    jc InvalidSolution
+    bts edx, esi
+    inc ecx
+    jmp RowLoop
+
+NextRow:
+    inc ebx
+    jmp RowCheck
+
+ColumnsCheck:
+    ; Check all columns
+    mov ebx, 0          ; Column counter
+ColumnCheck:
+    cmp ebx, 9
+    je BoxesCheck
+    mov edx, 0          ; Bitmask
+    mov ecx, 0          ; Row counter
+ColumnLoop:
+    cmp ecx, 9
+    je NextColumn
+    mov eax, ecx
+    imul eax, 9
+    add eax, ebx
+    movzx esi, board[eax]
+    dec esi
+    bt edx, esi
+    jc InvalidSolution
+    bts edx, esi
+    inc ecx
+    jmp ColumnLoop
+
+NextColumn:
+    inc ebx
+    jmp ColumnCheck
+
+BoxesCheck:
+    ; Check all 3x3 boxes
+    mov ebx, 0          ; Box row counter (0-2)
+BoxRowLoop:
+    cmp ebx, 3
+    je ValidSolution
+    mov ecx, 0          ; Box column counter (0-2)
+BoxColLoop:
+    cmp ecx, 3
+    je NextBoxRow
+    mov edx, 0          ; Bitmask
+    
+    ; Calculate box boundaries
+    mov eax, ebx
+    imul eax, 3         ; Starting row
+    mov edi, eax
+    add edi, 3          ; Ending row
+    
+    mov eax, ecx
+    imul eax, 3         ; Starting column
+    mov esi, eax
+    add esi, 3          ; Ending column
+    
+    ; Check each cell in box
+    mov eax, edi
+    sub eax, 3          ; Reset to starting row
+BoxCellRow:
+    cmp eax, edi
+    je NextBoxCol
+    mov ebp, esi
+    sub ebp, 3          ; Reset to starting column
+BoxCellCol:
+    cmp ebp, esi
+    je NextBoxCellRow
+    push eax
+    imul eax, 9
+    add eax, ebp
+    movzx eax, board[eax]
+    dec eax
+    bt edx, eax
+    jc InvalidSolution
+    bts edx, eax
+    pop eax
+    inc ebp
+    jmp BoxCellCol
+
+NextBoxCellRow:
+    inc eax
+    jmp BoxCellRow
+
+NextBoxCol:
+    inc ecx
+    jmp BoxColLoop
+
+NextBoxRow:
+    inc ebx
+    jmp BoxRowLoop
+
+ValidSolution:
+    mov eax, 1
+    jmp VerifyDone
+
+InvalidSolution:
+    mov eax, 0
+
+VerifyDone:
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+VerifySolution ENDP
 
 UpdateBoard PROC
     push eax
@@ -486,26 +636,39 @@ UpdateBoard PROC
 UpdateBoard ENDP
 
 CheckSolved PROC
-    push ecx
-    
-    mov ecx, 0
-CheckCell:
-    cmp ecx, 81
+    pushad
+    mov ecx, 81           ; Number of cells in board
+    mov esi, OFFSET board
+    mov eax, 0            ; Counter for empty cells
+
+CheckLoop:
+    cmp BYTE PTR [esi], 0
+    jne SkipCount
+    inc eax               ; Count empty cells
+
+SkipCount:
+    inc esi
+    loop CheckLoop
+
+    ; Debug: Print empty cell count
+    mov edx, OFFSET newline
+    call WriteString
+    mov edx, OFFSET spaceStr
+    call WriteString
+    call WriteDec   ; Print number of empty cells
+    call Crlf
+
+    ; If no empty cells, return 1
+    cmp eax, 0
     je Solved
-    cmp board[ecx], 0
-    je NotSolved
-    inc ecx
-    jmp CheckCell
-    
+    mov eax, 0
+    jmp Done
+
 Solved:
     mov eax, 1
-    jmp CheckDone
-    
-NotSolved:
-    mov eax, 0
-    
-CheckDone:
-    pop ecx
+
+Done:
+    popad
     ret
 CheckSolved ENDP
 

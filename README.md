@@ -7,7 +7,6 @@ Sudoku Game in MASM
 - Raghib Rizwan Rabani (23K-0012)
 - Syed Fahad Faheem Shah (23K-0062)
 - Talha Rusman (23K-0065)
-- *(Add more names here if needed)*
 
 ## Course Instructor:
 Professor Ubaidullah

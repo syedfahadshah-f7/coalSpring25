@@ -1,3 +1,4 @@
+```asm
 include Irvine32.inc
 
 .data
@@ -23,7 +24,7 @@ include Irvine32.inc
     inputBuffer BYTE 16 DUP(?)
     ;row BYTE ?
     ;col BYTE ?
-    value BYTE ?
+    ;value BYTE ?
 
 .code
 main PROC
@@ -513,7 +514,7 @@ NotCol:
     jl InvalidParse
     cmp eax, 9
     jg InvalidParse
-    mov value, al
+    mov num, eax
     inc edi
 
     ; Check for any extra characters
@@ -572,7 +573,7 @@ ValidateMove PROC
     mov edi, eax            ; Save cell index
 
     ; Check if cell is empty or we're clearing it (value=0)
-    movzx ecx, value
+    mov ecx, num
     cmp ecx, 0
     je ValidMove            ; Allow clearing any cell
     cmp DWORD PTR [board + eax], 0
@@ -593,7 +594,7 @@ ValidateMove PROC
     imul eax, 36            ; eax = start of row (row * 36 bytes)
     
     mov ecx, 9              ; Check all 9 columns
-    movzx edx, value
+    mov edx, num
 RowCheck:
     cmp eax, esi            ; Skip current cell
     je SkipRowCheck
@@ -611,7 +612,7 @@ SkipRowCheck:
     mov ebx, edx            ; ebx = column byte offset (0,4,8,...,32)
     
     mov ecx, 9              ; Check all 9 rows
-    movzx edx, value
+    mov edx, num
 ColCheck:
     ; Calculate index = (row * 36) + column offset
     mov eax, ecx
@@ -660,7 +661,7 @@ BoxRowCheck:
     push ecx
     mov ecx, 3              ; 3 columns in box
     mov eax, ebx            ; start of row in box
-    movzx edx, value        ; number to validate
+    mov edx, num        ; number to validate
 BoxColCheck:
     cmp eax, edi            ; skip the original cell
     je SkipBoxCheck
@@ -848,7 +849,7 @@ UpdateBoard PROC
     shl eax, 2       ; Multiply by 4 for DWORD offset
 
     ; Update board
-    movzx ecx, value
+    mov ecx, num
     mov [board + eax], ecx  ; Store DWORD value
 
     pop edx
@@ -888,3 +889,4 @@ CheckDone:
 CheckSolved ENDP
 
 END main
+```

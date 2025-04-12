@@ -1,4 +1,3 @@
-```asm
 include Irvine32.inc
 
 .data
@@ -297,7 +296,7 @@ isSafe ENDP
 
 ; Remove numbers to create puzzle
 removeNumbers PROC
-    mov ecx, 50
+    mov ecx, 30
 removeLoop:
     mov eax, 81
     call RandomRange
@@ -889,4 +888,3 @@ CheckDone:
 CheckSolved ENDP
 
 END main
-```

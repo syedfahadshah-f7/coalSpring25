@@ -165,6 +165,8 @@ getRandomNum ENDP
 
 ; Fill remaining cells
 fillRemaining PROC
+    call InitializeBoard
+    ret
     mov row, 0
 rowLoop:
     mov col, 0
@@ -297,7 +299,7 @@ isSafe ENDP
 
 ; Remove numbers to create puzzle
 removeNumbers PROC
-    mov ecx, 30
+    mov ecx, 58
 removeLoop:
     mov eax, 81
     call RandomRange
@@ -542,6 +544,109 @@ ParseDone:
     pop ebx
     ret
 ParseInput ENDP
+
+InitializeBoard proc
+    ; Row 1
+    mov board[0*4], 5
+    mov board[1*4], 3
+    mov board[2*4], 4
+    mov board[3*4], 6
+    mov board[4*4], 7
+    mov board[5*4], 8
+    mov board[6*4], 9
+    mov board[7*4], 1
+    mov board[8*4], 2
+    
+    ; Row 2
+    mov board[9*4], 6
+    mov board[10*4], 7
+    mov board[11*4], 2
+    mov board[12*4], 1
+    mov board[13*4], 9
+    mov board[14*4], 5
+    mov board[15*4], 3
+    mov board[16*4], 4
+    mov board[17*4], 8
+    
+    ; Row 3
+    mov board[18*4], 1
+    mov board[19*4], 9
+    mov board[20*4], 8
+    mov board[21*4], 3
+    mov board[22*4], 4
+    mov board[23*4], 2
+    mov board[24*4], 5
+    mov board[25*4], 6
+    mov board[26*4], 7
+    
+    ; Row 4
+    mov board[27*4], 8
+    mov board[28*4], 5
+    mov board[29*4], 9
+    mov board[30*4], 7
+    mov board[31*4], 6
+    mov board[32*4], 1
+    mov board[33*4], 4
+    mov board[34*4], 2
+    mov board[35*4], 3
+    
+    ; Row 5
+    mov board[36*4], 4
+    mov board[37*4], 2
+    mov board[38*4], 6
+    mov board[39*4], 8
+    mov board[40*4], 5
+    mov board[41*4], 3
+    mov board[42*4], 7
+    mov board[43*4], 9
+    mov board[44*4], 1
+    
+    ; Row 6
+    mov board[45*4], 7
+    mov board[46*4], 1
+    mov board[47*4], 3
+    mov board[48*4], 9
+    mov board[49*4], 2
+    mov board[50*4], 4
+    mov board[51*4], 8
+    mov board[52*4], 5
+    mov board[53*4], 6
+    
+    ; Row 7
+    mov board[54*4], 9
+    mov board[55*4], 6
+    mov board[56*4], 1
+    mov board[57*4], 5
+    mov board[58*4], 3
+    mov board[59*4], 7
+    mov board[60*4], 2
+    mov board[61*4], 8
+    mov board[62*4], 4
+    
+    ; Row 8
+    mov board[63*4], 2
+    mov board[64*4], 8
+    mov board[65*4], 7
+    mov board[66*4], 4
+    mov board[67*4], 1
+    mov board[68*4], 9
+    mov board[69*4], 6
+    mov board[70*4], 3
+    mov board[71*4], 5
+    
+    ; Row 9
+    mov board[72*4], 3
+    mov board[73*4], 4
+    mov board[74*4], 5
+    mov board[75*4], 2
+    mov board[76*4], 8
+    mov board[77*4], 6
+    mov board[78*4], 1
+    mov board[79*4], 7
+    mov board[80*4], 9
+    
+    ret
+InitializeBoard endp
 
 ValidateMove PROC
     push ebx

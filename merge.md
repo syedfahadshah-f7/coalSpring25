@@ -1,4 +1,3 @@
-```asm
 include Irvine32.inc
 
 .data
@@ -11,6 +10,9 @@ include Irvine32.inc
     ; Strings for display
     titleStr BYTE "MASM Sudoku", 0
     promptStr BYTE "Enter row, column, and value (1-9) or 0 to exit: ", 0
+    promptRowStr BYTE "Enter row (1-9): ", 0
+    promptColStr BYTE "Enter column (1-9): ", 0
+    promptValStr BYTE "Enter value (1-9 or 0 to clear): ", 0
     invalidStr BYTE "Invalid input! Try again.", 0
     winStr BYTE "Congratulations! You solved the Sudoku!", 0
     errorStr BYTE "Invalid move! Try again.", 0
@@ -21,7 +23,10 @@ include Irvine32.inc
     newline BYTE 0Dh, 0Ah, 0
     
     ; Input variables
-    inputBuffer BYTE 16 DUP(?)
+    inputBuffer DWORD 16 DUP(?)
+    rownum DWORD ?
+    colnum DWORD ?
+    valnum DWORD ?
     ;row BYTE ?
     ;col BYTE ?
     ;value BYTE ?
@@ -42,65 +47,85 @@ initBoard:
     call fillRemaining  ; Fill remaining cells
     call removeNumbers  ; Remove some numbers to create puzzle
     call DisplayBoard     ; Display the board
-    ;call DisplayBoard
 
 GameLoop:
-    ; Prompt for input
-    mov edx, OFFSET promptStr
+    ; Prompt for row
+    mov edx, OFFSET promptRowStr
     call WriteString
-    
-    ; Read input
-    mov edx, OFFSET inputBuffer
-    mov ecx, SIZEOF inputBuffer
-    call ReadString
-    
-    ; Check for exit
-    cmp BYTE PTR [inputBuffer], '0'
-    je ExitGame
-    
-    ; Parse input
-    call ParseInput
+    mov eax,rownum
+    call ReadInt
+    mov rownum,eax
+    call ParseRowInput
     cmp eax, 0
-    je InputError
-    
+    je MoveError  ; Handle invalid row input
+
+    ; Debugging output
+    mov eax, rownum
+    call WriteDec
+    call Crlf
+
+    ; Prompt for column
+    mov edx, OFFSET promptColStr
+    call WriteString
+    mov eax,colnum
+    call ReadInt
+    mov colnum,eax
+    call ParseColInput
+    cmp eax, 0
+    je MoveError  ; Handle invalid column input
+
+    ; Debugging output
+    mov eax, colnum
+    call WriteDec
+    call Crlf
+
+    ; Prompt for value
+    mov edx, OFFSET promptValStr
+    call WriteString
+    mov eax,valnum
+    call ReadInt
+    mov valnum,eax
+    call ParseValInput
+    cmp eax, 0
+    je MoveError  ; Handle invalid value input
+
+    ; Debugging output
+    mov eax, valnum
+    call WriteDec
+    call Crlf
+
     ; Validate move
     call ValidateMove
     cmp eax, 0
     je MoveError
-    
+
     ; Update board
     call UpdateBoard
-    
+
     ; Display updated board
     call DisplayBoard
-    
+
     ; Check if ALL cells are filled
     call CheckSolved
     cmp eax, 1
     jne GameLoop  ; If not all filled, keep playing
-    
+
     ; Only when all cells are filled, verify the solution
     call VerifySolution
     cmp eax, 1
     jne GameLoop  ; If invalid, keep playing
-    
-    ; Only show win message if both conditions are met
+
+    ; Show win message
     mov edx, OFFSET winStr
     call WriteString
     call Crlf
     jmp ExitGame
 
-InputError:
+MoveError:
     mov edx, OFFSET invalidStr
     call WriteString
     call Crlf
-    jmp GameLoop
-
-MoveError:
-    mov edx, OFFSET errorStr
-    call WriteString
-    call Crlf
-    jmp GameLoop
+    jmp GameLoop  ; Return to the start of the game loop
 
 ExitGame:
     exit
@@ -431,6 +456,100 @@ DisplayBottom:
     ret
 DisplayBoard ENDP
 
+; Parse Row Input
+ParseRowInput PROC
+    push ebx
+    push ecx
+    push edx
+    push esi
+
+    ; Read the input
+    mov eax, rownum
+
+    ; Convert character to number
+    cmp eax, 1                   ; Check if in range (1-9)
+    jl InvalidParse
+    cmp eax, 9
+    jg InvalidParse
+
+    mov rownum, eax             ; Store the valid row number
+    mov eax, 1                  ; Success
+    jmp ParseDone
+
+InvalidParse:
+    mov eax, 0                  ; Failure
+
+ParseDone:
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+ParseRowInput ENDP
+
+; Parse Column Input
+ParseColInput PROC
+    push ebx
+    push ecx
+    push edx
+    push esi
+
+    ; Read the input
+    mov eax,colnum
+
+    ; Convert character to number
+    ;sub al, '0'                 ; Convert ASCII to integer
+    cmp eax, 1                   ; Check if in range (1-9)
+    jl InvalidParse
+    cmp eax, 9
+    jg InvalidParse
+
+    mov colnum, eax             ; Store the valid column number
+    mov eax, 1                  ; Success
+    jmp ParseDone
+
+InvalidParse:
+    mov eax, 0                  ; Failure
+
+ParseDone:
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+ParseColInput ENDP
+
+ParseValInput PROC
+    push ebx
+    push ecx
+    push edx
+    push esi
+
+    ; Read the input
+    mov eax,valnum
+
+    ; Convert character to number
+    ;sub al, '0'                 ; Convert ASCII to integer
+    cmp eax, 0                   ; Check if in range (0-9)
+    jl InvalidParse
+    cmp eax, 9
+    jg InvalidParse
+
+    mov valnum, eax             ; Store the valid value
+    mov eax, 1                  ; Success
+    jmp ParseDone
+
+InvalidParse:
+    mov eax, 0                  ; Failure
+
+ParseDone:
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+ParseValInput ENDP
+
 ParseInput PROC
     push ebx
     push ecx
@@ -444,15 +563,9 @@ ParseInput PROC
 
 ParseLoop:
     ; Skip whitespace
-    mov al, [esi]
-    cmp al, 0                   ; End of string?
+    mov eax, [esi]
+    cmp eax, '0'                   ; End of string?
     je CheckComplete
-    cmp al, ' '                 ; Space
-    je SkipChar
-    cmp al, 9                   ; Tab
-    je SkipChar
-    cmp al, ','                 ; Comma
-    je SkipChar
     jmp CheckDigit
 
 SkipChar:
@@ -461,9 +574,9 @@ SkipChar:
 
 CheckDigit:
     ; Check if digit
-    cmp al, '0'
+    cmp eax, '0'
     jl InvalidParse
-    cmp al, '9'
+    cmp eax, '9'
     jg InvalidParse
 
     ; Parse the number
@@ -471,18 +584,18 @@ CheckDigit:
     xor ebx, ebx
 
 ParseNumber:
-    mov bl, [esi]
-    cmp bl, '0'
+    mov ebx, [esi]
+    cmp ebx, '0'
     jl NumberDone
-    cmp bl, '9'
+    cmp ebx, '9'
     jg NumberDone
     
     ; Accumulate number
     imul eax, 10
-    sub bl, '0'
+    sub ebx, '0'
     add eax, ebx
     inc esi
-    mov bl, [esi]
+    mov ebx, [esi]
     jmp ParseNumber
 
 NumberDone:
@@ -520,8 +633,8 @@ NotCol:
     inc edi
 
     ; Check for any extra characters
-    mov al, [esi]
-    cmp al, 0
+    mov eax, [esi]
+    cmp eax, 0
     jne InvalidParse
     jmp CheckComplete
 
@@ -656,9 +769,9 @@ ValidateMove PROC
     push edi
 
     ; Convert to 0-based indices
-    mov eax, row
+    mov eax, rownum
     dec eax                 ; 0-based row
-    mov ebx, col
+    mov ebx, colnum
     dec ebx                 ; 0-based column
 
     ; Check bounds (0-8)
@@ -678,10 +791,10 @@ ValidateMove PROC
     mov edi, eax            ; Save cell index
 
     ; Check if cell is empty or we're clearing it (value=0)
-    mov ecx, num
+    mov ecx, valnum
     cmp ecx, 0
     je ValidMove            ; Allow clearing any cell
-    cmp DWORD PTR [board + eax], 0
+    cmp DWORD PTR [board + edi], 0
     jne InvalidValidation   ; Cell must be empty to place number
 
     ; Check value is 1-9
@@ -694,16 +807,11 @@ ValidateMove PROC
     mov esi, edi            ; Save current index
     mov eax, edi
     xor edx, edx
-    mov ecx, 36             ; 9 columns * 4 bytes
-    div ecx                 ; eax = row number (0-8), edx = byte offset in row
-    imul eax, 36            ; eax = start of row (row * 36 bytes)
-    
     mov ecx, 9              ; Check all 9 columns
-    mov edx, num
 RowCheck:
     cmp eax, esi            ; Skip current cell
     je SkipRowCheck
-    cmp DWORD PTR [board + eax], edx
+    cmp DWORD PTR [board + eax], ecx
     je DuplicateFound
 SkipRowCheck:
     add eax, 4              ; Move to next DWORD
@@ -712,32 +820,27 @@ SkipRowCheck:
     ; Check column for duplicate
     mov eax, edi            ; Original index
     xor edx, edx
-    mov ecx, 36             ; 9 rows * 4 bytes
-    div ecx                 ; eax = row, edx = byte offset
-    mov ebx, edx            ; ebx = column byte offset (0,4,8,...,32)
-    
     mov ecx, 9              ; Check all 9 rows
-    mov edx, num
 ColCheck:
-    ; Calculate index = (row * 36) + column offset
-    mov eax, ecx
-    dec eax                 ; row index (0-8)
-    imul eax, 36
-    add eax, ebx            ; eax = (row * 36) + column offset
-    
+    ; Calculate index = (row * 9) + column offset
+    mov eax, ebx
+    imul eax, 9
+    add eax, edx            ; eax = (row * 9) + column offset
     cmp eax, edi            ; Skip current cell
     je SkipColCheck
-    cmp DWORD PTR [board + eax], edx
+    cmp DWORD PTR [board + eax], ecx
     je DuplicateFound
 SkipColCheck:
-    loop ColCheck
+    inc edx
+    cmp edx, 9
+    jl ColCheck
 
     ; Check 3x3 box for duplicate
     mov eax, edi            ; Original index
     xor edx, edx
-    mov ecx, 36             ; 9 rows * 4 bytes
+    mov ecx, 3              ; 3 rows in box
     div ecx                 ; eax = row (0-8), edx = byte offset
-    
+
     ; Calculate box starting row = (row / 3) * 3
     push eax
     xor edx, edx
@@ -746,27 +849,27 @@ SkipColCheck:
     imul eax, 3             ; eax = box starting row
     mov ebx, eax            ; ebx = box starting row
     pop eax
-    
+
     ; Calculate box starting column = (column / 3) * 3
-    mov eax, edx            ; column byte offset (0-32)
+    mov eax, ebx            ; column byte offset (0-32)
     shr eax, 2              ; Convert to column index (0-8)
     xor edx, edx
     mov ecx, 3
     div ecx                 ; eax = column / 3
     imul eax, 3             ; eax = box starting column
     shl eax, 2              ; Convert back to byte offset
-    
-    ; Calculate starting index = (box starting row * 36) + (box starting column * 4)
-    imul ebx, 36
+
+    ; Calculate starting index = (box starting row * 9 * 4) + (box starting column * 4)
+    imul ebx, 9
     add ebx, eax            ; ebx = starting index of box
-    
+
     ; Check all 9 cells in the box
     mov ecx, 3              ; 3 rows in box
 BoxRowCheck:
     push ecx
     mov ecx, 3              ; 3 columns in box
     mov eax, ebx            ; start of row in box
-    mov edx, num        ; number to validate
+    mov edx, valnum         ; number to validate
 BoxColCheck:
     cmp eax, edi            ; skip the original cell
     je SkipBoxCheck
@@ -795,6 +898,63 @@ ValidateDone:
     pop ebx
     ret
 ValidateMove ENDP
+
+UpdateBoard PROC
+    push eax
+    push ebx
+    push ecx
+    push edx
+
+    ; Convert 1-based row and column to 0-based
+    mov eax, rownum
+    dec eax
+    mov ebx, colnum
+    dec ebx
+    
+    ; Calculate index = (row * 9 + col) * 4
+    imul eax, 9
+    add eax, ebx
+    shl eax, 2       ; Multiply by 4 for DWORD offset
+
+    ; Update board
+    mov ecx, valnum
+    mov [board + eax], ecx  ; Store DWORD value
+
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    ret
+UpdateBoard ENDP
+
+CheckSolved PROC
+    push ecx
+    push esi
+    
+    mov ecx, 0
+    mov esi, OFFSET board
+    
+CheckCell:
+    cmp ecx, 81
+    je Solved
+    cmp DWORD PTR [esi], 0
+    je NotSolved
+    inc ecx
+    add esi, 4       ; Move to next DWORD
+    jmp CheckCell
+    
+Solved:
+    mov eax, 1
+    jmp CheckDone
+    
+NotSolved:
+    mov eax, 0
+    
+CheckDone:
+    pop esi
+    pop ecx
+    ret
+CheckSolved ENDP
 
 VerifySolution PROC
     push ebx
@@ -847,7 +1007,8 @@ ColumnLoop:
     mov eax, ecx
     imul eax, 9
     add eax, ebx
-    shl eax, 2          ; Multiply by 4 for DWORD offset
+    shl eax, 2          ; ```assembly
+    ; Multiply by 4 for DWORD offset
     mov esi, [board + eax]
     dec esi
     bt edx, esi
@@ -936,62 +1097,4 @@ VerifyDone:
     ret
 VerifySolution ENDP
 
-UpdateBoard PROC
-    push eax
-    push ebx
-    push ecx
-    push edx
-
-    ; Convert 1-based row and column to 0-based
-    mov eax, row
-    dec eax
-    mov ebx, col
-    dec ebx
-    
-    ; Calculate index = (row * 9 + col) * 4
-    imul eax, 9
-    add eax, ebx
-    shl eax, 2       ; Multiply by 4 for DWORD offset
-
-    ; Update board
-    mov ecx, num
-    mov [board + eax], ecx  ; Store DWORD value
-
-    pop edx
-    pop ecx
-    pop ebx
-    pop eax
-    ret
-UpdateBoard ENDP
-
-CheckSolved PROC
-    push ecx
-    push esi
-    
-    mov ecx, 0
-    mov esi, OFFSET board
-    
-CheckCell:
-    cmp ecx, 81
-    je Solved
-    cmp DWORD PTR [esi], 0
-    je NotSolved
-    inc ecx
-    add esi, 4       ; Move to next DWORD
-    jmp CheckCell
-    
-Solved:
-    mov eax, 1
-    jmp CheckDone
-    
-NotSolved:
-    mov eax, 0
-    
-CheckDone:
-    pop esi
-    pop ecx
-    ret
-CheckSolved ENDP
-
 END main
-```

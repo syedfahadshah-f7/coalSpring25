@@ -25,9 +25,9 @@ include Irvine32.inc
     
     ; Input variables
     inputBuffer DWORD 16 DUP(?)
-    rownum DWORD ?
-    colnum DWORD ?
-    valnum DWORD ?
+    rownum SDWORD ?
+    colnum SDWORD ?
+    valnum SDWORD ?
 
 .code
 main PROC
@@ -57,6 +57,10 @@ GameLoop:
     cmp eax, 0
     je MoveError  ; Handle invalid row input
 
+    mov eax,rownum
+    call WriteInt
+    call Crlf
+
     ; Prompt for column
     mov edx, OFFSET promptColStr
     call WriteString
@@ -67,6 +71,10 @@ GameLoop:
     cmp eax, 0
     je MoveError  ; Handle invalid column input
 
+    mov eax,colnum
+    call WriteInt
+    call Crlf
+
     ; Prompt for value
     mov edx, OFFSET promptValStr
     call WriteString
@@ -76,6 +84,10 @@ GameLoop:
     call ParseValInput
     cmp eax, 0
     je MoveError  ; Handle invalid value input
+
+    mov eax,valnum
+    call WriteInt
+    call Crlf
 
     ; Validate move
     call ValidateMove

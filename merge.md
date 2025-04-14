@@ -1,3 +1,4 @@
+```asm
 include Irvine32.inc
 
 .data
@@ -27,9 +28,6 @@ include Irvine32.inc
     rownum DWORD ?
     colnum DWORD ?
     valnum DWORD ?
-    ;row BYTE ?
-    ;col BYTE ?
-    ;value BYTE ?
 
 .code
 main PROC
@@ -59,11 +57,6 @@ GameLoop:
     cmp eax, 0
     je MoveError  ; Handle invalid row input
 
-    ; Debugging output
-    mov eax, rownum
-    call WriteDec
-    call Crlf
-
     ; Prompt for column
     mov edx, OFFSET promptColStr
     call WriteString
@@ -74,11 +67,6 @@ GameLoop:
     cmp eax, 0
     je MoveError  ; Handle invalid column input
 
-    ; Debugging output
-    mov eax, colnum
-    call WriteDec
-    call Crlf
-
     ; Prompt for value
     mov edx, OFFSET promptValStr
     call WriteString
@@ -88,11 +76,6 @@ GameLoop:
     call ParseValInput
     cmp eax, 0
     je MoveError  ; Handle invalid value input
-
-    ; Debugging output
-    mov eax, valnum
-    call WriteDec
-    call Crlf
 
     ; Validate move
     call ValidateMove
@@ -1098,3 +1081,4 @@ VerifyDone:
 VerifySolution ENDP
 
 END main
+```

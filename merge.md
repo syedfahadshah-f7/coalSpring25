@@ -22,6 +22,7 @@ include Irvine32.inc
     spaceStr BYTE " ", 0
     barStr BYTE "|", 0
     newline BYTE 0Dh, 0Ah, 0
+    editable DWORD 81 DUP(1)  ; 1 means editable, 0 means not editable
     
     ; Input variables
     inputBuffer DWORD 16 DUP(?)
@@ -156,6 +157,7 @@ fillLoop:
     jge fillBoxEnd
 
     mov board[esi*4], eax  ; Write number
+    mov editable[esi*4], 0 ; Mark as not editable
 
     inc col
     inc ecx
@@ -165,7 +167,7 @@ fillLoop:
     ; Reset column and move to next row
     mov col, edi
     inc row
-    add edi,3
+    add edi, 3
     cmp row, edi
     jl fillLoop
 
@@ -780,10 +782,14 @@ ValidateMove PROC
     jg InvalidValidation
 
     ; Calculate index = (row * 9 + col) * 4
-    imul eax, 9
+    imul eax,  9
     add eax, ebx
     shl eax, 2       ; Multiply by 4 for DWORD offset
     mov edi, eax            ; Save cell index
+
+    ; Check if the cell is editable
+    cmp editable[eax], 0
+    je InvalidValidation   ; If not editable, invalid move
 
     ; Check if cell is empty or we're clearing it (value=0)
     mov ecx, valnum
@@ -911,10 +917,30 @@ UpdateBoard PROC
     add eax, ebx
     shl eax, 2       ; Multiply by 4 for DWORD offset
 
+    ; Check if the cell is editable
+    cmp editable[eax], 0
+    je NotEditable     ; If not editable, jump to error handling
+
+    ; If the value is 0, do not allow clearing of non-editable cells
+    cmp valnum, 0
+    je NotEditable     ; If trying to clear a non-editable cell, jump to error handling
+
     ; Update board
     mov ecx, valnum
     mov [board + eax], ecx  ; Store DWORD value
 
+    pop edx
+    pop ecx
+    pop ebx
+    pop eax
+    ret
+
+NotEditable:
+    ; Handle the case where the player tries to edit a non-editable cell
+    mov eax, 0          ; Indicate invalid move
+    jmp UpdateDone
+
+UpdateDone:
     pop edx
     pop ecx
     pop ebx

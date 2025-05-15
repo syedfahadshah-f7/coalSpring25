@@ -2,7 +2,6 @@
 include Irvine32.inc
 
 .data
-    ; Sudoku board (0 = empty) using DWORD
     board DWORD 81 DUP(0)  ; 9x9 Sudoku board
     row DWORD ?
     col DWORD ?
@@ -43,10 +42,8 @@ initBoard:
     inc esi
     loop initBoard
 
-    call fillDiagonal   ; Fill diagonal boxes first
-    call fillRemaining  ; Fill remaining cells
-    call removeNumbers  ; Remove some numbers to create puzzle
-    call DisplayBoard     ; Display the board
+    ; Set up the puzzle
+    call InitializeBoard  ; Now directly load the predefined board
     call removeNumbers    ; Remove some numbers to create puzzle
     
     ; Mark cells with initial values as non-editable
@@ -132,6 +129,14 @@ ExitGame:
     exit
 main ENDP
 
+InitializeBard proc
+    call fillDiagonal
+    call fillRemaining
+    ret
+
+InitializeBard endp
+
+
 ; Fill diagonal 3x3 boxes (not used in current implementation)
 fillDiagonal PROC
     mov ecx, 0
@@ -193,7 +198,8 @@ getRandomNum ENDP
 
 ; Fill remaining cells
 fillRemaining PROC
-
+    call InitializeBoard
+    ret
     mov row, 0
 rowLoop:
     mov col, 0
@@ -323,37 +329,6 @@ done:
     pop ebp
     ret 12
 isSafe ENDP
-
-; Remove numbers to create puzzle
-removeNumbers PROC
-    push ecx
-    push eax
-    push esi
-    push ebx
-    
-    ; Remove a number of values to create the puzzle
-    mov ecx, 40  ; Number of cells to empty - adjust for difficulty (40-60 is typical)
-removeLoop:
-    ; Generate random index (0-80)
-    mov eax, 81
-    call RandomRange
-    mov esi, eax
-    
-    ; Check if cell already empty
-    mov ebx, board[esi*4]
-    cmp ebx, 0
-    je removeLoop  ; If already empty, try another cell
-    
-    ; Empty the cell
-    mov board[esi*4], 0
-    loop removeLoop
-    
-    pop ebx
-    pop esi
-    pop eax
-    pop ecx
-    ret
-removeNumbers ENDP
 
 ; Print the board
 DisplayBoard PROC
@@ -568,14 +543,14 @@ ValidateMove PROC
     cmp ebx, 8
     jg InvalidValidation
 
-    ; Calculate index = row * 9 + col
+    ; Calculate index = row * 9 + col (Because of 1D array)
     imul eax, 9
     add eax, ebx
     mov edi, eax            ; Save cell index
 
     ; Check if the cell is editable
     cmp editable[edi*4], 0
-    je InvalidValidation    ; If not editable, invalid move
+    je InvalidValidation    ; Invalid move
 
     ; If we're clearing a cell (value=0), it's a valid move
     mov ecx, valnum
@@ -603,7 +578,7 @@ CheckRowLoop:
     imul eax, 9
     add eax, esi
     
-    ; Skip current cell
+    ; Skip current cell if it is our target cell
     cmp eax, edi
     je SkipRowCheck
     
@@ -677,7 +652,7 @@ CheckBoxColLoop:
     add eax, ebx     ; col = start_col + offset_col
     add edx, eax     ; index = row * 9 + col
     
-    ; Skip current cell
+    ; Skip current cell if it is target cell
     cmp edx, edi
     je SkipBoxCheck
     
@@ -760,6 +735,7 @@ UpdateDone:
     ret
 UpdateBoard ENDP
 
+; checks if all cells of the Sudoku board are filled 
 CheckSolved PROC
     push ecx
     push esi
@@ -789,6 +765,7 @@ CheckDone:
     ret
 CheckSolved ENDP
 
+; checks if a fully filled Sudoku board is a valid solution by ensuring no duplicates exist in any row, column, or 3x3 box.
 VerifySolution PROC
     push ebx
     push ecx

@@ -43,8 +43,10 @@ initBoard:
     inc esi
     loop initBoard
 
-    ; Set up the puzzle
-    call InitializeBoard  ; Now directly load the predefined board
+    call fillDiagonal   ; Fill diagonal boxes first
+    call fillRemaining  ; Fill remaining cells
+    call removeNumbers  ; Remove some numbers to create puzzle
+    call DisplayBoard     ; Display the board
     call removeNumbers    ; Remove some numbers to create puzzle
     
     ; Mark cells with initial values as non-editable
@@ -188,6 +190,139 @@ getRandomNum PROC
     mov num, eax
     ret
 getRandomNum ENDP
+
+; Fill remaining cells
+fillRemaining PROC
+
+    mov row, 0
+rowLoop:
+    mov col, 0
+colLoop:
+    mov esi, row
+    imul esi, 9
+    add esi, col
+
+    ; Check if index is valid
+    cmp esi, 81
+    jge skip
+
+    cmp board[esi*4], 0
+    jne skip
+    mov num, 1
+
+numLoop:
+    push row
+    push col
+    push num
+    call isSafe
+    cmp eax, 1
+    jne nextNum
+
+    mov esi, row
+    imul esi, 9
+    add esi, col
+    mov eax, num
+    mov board[esi*4], eax
+
+    call fillRemaining
+    cmp eax, 1
+    je skip
+
+    mov esi, row
+    imul esi, 9
+    add esi, col
+    mov board[esi*4], 0
+
+nextNum:
+    inc num
+    cmp num, 10
+    jle numLoop
+    mov eax, 0
+    ret
+
+skip:
+    inc col
+    cmp col, 9
+    jl colLoop
+    inc row
+    cmp row, 9
+    jl rowLoop
+    mov eax, 1
+    ret
+fillRemaining ENDP
+
+; Check if number is safe
+isSafe PROC
+    push ebp
+    mov ebp, esp
+    push ebx
+    push esi
+    push edi
+
+    mov ebx, [ebp+8]   ; num
+    mov edx, [ebp+12]  ; col
+    mov eax, [ebp+16]  ; row
+
+    mov ecx, 0
+rowCheck:
+    mov esi, eax
+    imul esi, 9
+    add esi, ecx
+    cmp board[esi*4], ebx
+    je notSafe
+    inc ecx
+    cmp ecx, 9
+    jl rowCheck
+
+    mov ecx, 0
+colCheck:
+    mov esi, ecx
+    imul esi, 9
+    add esi, edx
+    cmp board[esi*4], ebx
+    je notSafe
+    inc ecx
+    cmp ecx, 9
+    jl colCheck
+
+    mov esi, eax
+    mov edi, edx
+    and esi, -3
+    and edi, -3
+    mov ecx, 0
+boxCheckRow:
+    cmp ecx, 3
+    je boxSafe
+    mov edx, 0
+boxCheckCol:
+    cmp edx, 3
+    je nextBoxRow
+    mov eax, esi
+    add eax, ecx
+    imul eax, 9
+    add eax, edi
+    add eax, edx
+    cmp board[eax*4], ebx
+    je notSafe
+    inc edx
+    jmp boxCheckCol
+
+nextBoxRow:
+    inc ecx
+    jmp boxCheckRow
+
+boxSafe:
+    mov eax, 1
+    jmp done
+notSafe:
+    mov eax, 0
+done:
+    pop edi
+    pop esi
+    pop ebx
+    pop ebp
+    ret 12
+isSafe ENDP
 
 ; Remove numbers to create puzzle
 removeNumbers PROC
